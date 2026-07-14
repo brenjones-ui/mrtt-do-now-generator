@@ -7,7 +7,7 @@
   <title>MRTT Do Now Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;600;700&family=Noto+Music&display=swap" rel="stylesheet">
   <style>
     :root {
       --ink: #193c57;
@@ -104,6 +104,14 @@
     .card[data-points="1"] { background: var(--one); }
     .card.revealed { filter: saturate(.55) brightness(1.07); }
     .card .label { display: block; }
+    .card .symbol {
+      display: block;
+      margin-top: 12px;
+      font-family: "Noto Music", "Segoe UI Symbol", sans-serif;
+      font-size: clamp(2.4rem, 5vw, 5.2rem);
+      line-height: 1;
+    }
+    .card .symbol:empty { display: none; }
     .card .hint {
       position: absolute;
       right: 12px;
@@ -224,8 +232,10 @@
   </main>
 
   <script>
-    // Sample questions for testing. The master sheet will replace this list later.
-    const questions = [
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR-bUOkaoVxeQZZfr76mXIM-ozMSdKwVzF4FAl80Kg8M0lBDbl9nfHd74jgGi5-qLrYvWiTsk0g8GqY/pub?gid=0&single=true&output=csv";
+
+    // These questions remain available if a school network blocks the live sheet.
+    const fallbackQuestions = [
       {id:"KM01",year:"Year 7",unit:"Keys and Melodies",topic:"Keyboard",points:1,question:"What pattern do the black keys form?",answer:"They form repeating groups of two and three."},
       {id:"KM02",year:"Year 7",unit:"Keys and Melodies",topic:"Keyboard",points:1,question:"In which direction does pitch get higher on a keyboard?",answer:"Pitch gets higher as you move to the right."},
       {id:"KM03",year:"Year 7",unit:"Keys and Melodies",topic:"Pitch",points:1,question:"What does pitch describe?",answer:"How high or low a sound is."},
@@ -239,6 +249,7 @@
       {id:"KM11",year:"Year 7",unit:"Keys and Melodies",topic:"Pitch",points:3,question:"A melody moves from C to G and then down to E. Describe its pitch movement.",answer:"It first ascends in a leap from C to G, then descends from G to E."},
       {id:"KM12",year:"Year 7",unit:"Keys and Melodies",topic:"Keyboard",points:3,question:"Explain why the black-key pattern helps musicians navigate the keyboard.",answer:"The repeating groups of two and three create landmarks that help musicians locate every named white key."}
     ];
+    let questions = [...fallbackQuestions];
 
     const grid = document.querySelector("#questionGrid");
     const status = document.querySelector("#status");
@@ -250,6 +261,63 @@
 
     const shuffle = list => [...list].sort(() => Math.random() - 0.5);
     const unique = (key, pool = questions) => [...new Set(pool.map(item => item[key]))].sort();
+
+    function parseCSV(text) {
+      const rows = [];
+      let row = [];
+      let value = "";
+      let quoted = false;
+
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        const next = text[i + 1];
+        if (char === '"' && quoted && next === '"') {
+          value += '"';
+          i += 1;
+        } else if (char === '"') {
+          quoted = !quoted;
+        } else if (char === "," && !quoted) {
+          row.push(value);
+          value = "";
+        } else if ((char === "\n" || char === "\r") && !quoted) {
+          if (char === "\r" && next === "\n") i += 1;
+          row.push(value);
+          if (row.some(cell => cell !== "")) rows.push(row);
+          row = [];
+          value = "";
+        } else {
+          value += char;
+        }
+      }
+      row.push(value);
+      if (row.some(cell => cell !== "")) rows.push(row);
+      return rows;
+    }
+
+    async function loadQuestionBank() {
+      const response = await fetch(SHEET_CSV_URL, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Question feed returned ${response.status}`);
+      const rows = parseCSV(await response.text());
+      const headers = rows.shift().map(header => header.trim());
+      const value = (row, name) => row[headers.indexOf(name)]?.trim() || "";
+      const loaded = rows.map(row => ({
+        id: value(row, "ID"),
+        year: value(row, "Year Group"),
+        unit: value(row, "Unit"),
+        topic: value(row, "Topic"),
+        firstLesson: Number(value(row, "First Retrieval Lesson")) || 1,
+        points: Number(value(row, "Points")),
+        question: value(row, "Question"),
+        answer: value(row, "Answer"),
+        status: value(row, "Status"),
+        promptType: value(row, "Prompt Type") || "Text",
+        symbol: value(row, "Symbol / Media"),
+        accessiblePrompt: value(row, "Accessible Prompt")
+      })).filter(item => item.id && item.question && item.answer && item.status === "Live" && [1, 2, 3].includes(item.points));
+
+      if (loaded.length < 6) throw new Error("The published question feed is empty or incomplete.");
+      questions = loaded;
+    }
 
     function addOptions(select, values) {
       select.querySelectorAll("option:not(:first-child)").forEach(option => option.remove());
@@ -283,10 +351,13 @@
       button.dataset.points = item.points;
       button.dataset.question = item.question;
       button.dataset.answer = item.answer;
+      button.dataset.symbol = item.symbol || "";
       button.dataset.revealed = "false";
-      button.setAttribute("aria-label", `${item.points} point question: ${item.question}. Click to reveal the answer.`);
-      button.innerHTML = `<span class="label"></span><span class="hint">Click to reveal</span>`;
+      button.dataset.accessiblePrompt = item.accessiblePrompt || item.question;
+      button.setAttribute("aria-label", `${item.points} point question: ${button.dataset.accessiblePrompt}. Click to reveal the answer.`);
+      button.innerHTML = `<span><span class="label"></span><span class="symbol" aria-hidden="true"></span></span><span class="hint">Click to reveal</span>`;
       button.querySelector(".label").textContent = item.question;
+      button.querySelector(".symbol").textContent = item.symbol || "";
       button.addEventListener("click", () => setRevealed(button, button.dataset.revealed !== "true"));
       return button;
     }
@@ -296,7 +367,7 @@
       card.classList.toggle("revealed", reveal);
       card.querySelector(".label").textContent = reveal ? card.dataset.answer : card.dataset.question;
       card.querySelector(".hint").textContent = reveal ? "Answer • click to hide" : "Click to reveal";
-      card.setAttribute("aria-label", reveal ? `Answer: ${card.dataset.answer}. Click to show the question.` : `${card.dataset.points} point question: ${card.dataset.question}. Click to reveal the answer.`);
+      card.setAttribute("aria-label", reveal ? `Answer: ${card.dataset.answer}. Click to show the question.` : `${card.dataset.points} point question: ${card.dataset.accessiblePrompt}. Click to reveal the answer.`);
     }
 
     function generate() {
@@ -319,8 +390,6 @@
       status.textContent = `New set generated from ${pool.length} available questions.`;
     }
 
-    addOptions(filters.year, unique("year"));
-    refreshDependentFilters();
     filters.year.addEventListener("change", () => { refreshDependentFilters(); generate(); });
     filters.unit.addEventListener("change", () => { refreshDependentFilters(); generate(); });
     filters.topic.addEventListener("change", generate);
@@ -340,7 +409,21 @@
       document.querySelector("#fullscreen").textContent = document.fullscreenElement ? "Exit full screen" : "Full screen";
     });
 
-    generate();
+    async function initialise() {
+      status.textContent = "Loading the live MRTT question bank…";
+      try {
+        await loadQuestionBank();
+        status.textContent = `${questions.length} live questions loaded.`;
+      } catch (error) {
+        console.warn(error);
+        status.textContent = "The live bank was unavailable, so the built-in starter questions have been loaded.";
+      }
+      addOptions(filters.year, unique("year"));
+      refreshDependentFilters();
+      generate();
+    }
+
+    initialise();
   </script>
 </body>
 </html>
