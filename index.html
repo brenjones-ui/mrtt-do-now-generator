@@ -130,6 +130,12 @@
       line-height: 1;
     }
     .card .symbol:empty { display: none; }
+    .card .symbol.symbol--text {
+      font-family: "Lexend", Arial, sans-serif;
+      font-size: clamp(1.5rem, 2.2vw, 2.15rem);
+      font-style: italic;
+      letter-spacing: .04em;
+    }
     .card .hint {
       position: absolute;
       right: 12px;
@@ -375,7 +381,9 @@
       button.setAttribute("aria-label", `${item.points} point question: ${button.dataset.accessiblePrompt}. Click to reveal the answer.`);
       button.innerHTML = `<span class="card-content"><span class="label"></span><span class="symbol" aria-hidden="true"></span></span><span class="hint">Click to reveal</span>`;
       button.querySelector(".label").textContent = item.question;
-      button.querySelector(".symbol").textContent = item.symbol || "";
+      const symbol = button.querySelector(".symbol");
+      symbol.textContent = item.symbol || "";
+      symbol.classList.toggle("symbol--text", /[A-Za-z0-9]/.test(item.symbol || ""));
       button.addEventListener("click", () => setRevealed(button, button.dataset.revealed !== "true"));
       return button;
     }
