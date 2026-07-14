@@ -136,6 +136,9 @@
       font-style: italic;
       letter-spacing: .04em;
     }
+    .card .symbol.symbol--clef {
+      font-size: clamp(1.35rem, 1.7vw, 1.65rem);
+    }
     .card .hint {
       position: absolute;
       right: 12px;
@@ -384,6 +387,7 @@
       const symbol = button.querySelector(".symbol");
       symbol.textContent = item.symbol || "";
       symbol.classList.toggle("symbol--text", /[A-Za-z0-9]/.test(item.symbol || ""));
+      symbol.classList.toggle("symbol--clef", /[𝄞𝄢]/u.test(item.symbol || ""));
       button.addEventListener("click", () => setRevealed(button, button.dataset.revealed !== "true"));
       return button;
     }
