@@ -95,6 +95,7 @@
       text-align: center;
       font-size: clamp(1.05rem, 1.65vw, 1.75rem);
       line-height: 1.35;
+      overflow: hidden;
       transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
     }
     .card:hover { transform: translateY(-3px); box-shadow: 0 9px 0 rgba(25,60,87,.12); }
@@ -103,12 +104,29 @@
     .card[data-points="2"] { background: var(--two); }
     .card[data-points="1"] { background: var(--one); }
     .card.revealed { filter: saturate(.55) brightness(1.07); }
-    .card .label { display: block; }
-    .card .symbol {
+    .card .card-content {
+      display: flex;
+      width: 100%;
+      min-height: 0;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+    }
+    .card .label {
       display: block;
-      margin-top: 12px;
+      max-width: 100%;
+    }
+    .card .symbol {
+      display: flex;
+      width: 100%;
+      height: 84px;
+      flex: 0 0 84px;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
       font-family: "Noto Music", "Segoe UI Symbol", sans-serif;
-      font-size: clamp(2.4rem, 5vw, 5.2rem);
+      font-size: clamp(2.2rem, 3.2vw, 3.25rem);
       line-height: 1;
     }
     .card .symbol:empty { display: none; }
@@ -355,7 +373,7 @@
       button.dataset.revealed = "false";
       button.dataset.accessiblePrompt = item.accessiblePrompt || item.question;
       button.setAttribute("aria-label", `${item.points} point question: ${button.dataset.accessiblePrompt}. Click to reveal the answer.`);
-      button.innerHTML = `<span><span class="label"></span><span class="symbol" aria-hidden="true"></span></span><span class="hint">Click to reveal</span>`;
+      button.innerHTML = `<span class="card-content"><span class="label"></span><span class="symbol" aria-hidden="true"></span></span><span class="hint">Click to reveal</span>`;
       button.querySelector(".label").textContent = item.question;
       button.querySelector(".symbol").textContent = item.symbol || "";
       button.addEventListener("click", () => setRevealed(button, button.dataset.revealed !== "true"));
