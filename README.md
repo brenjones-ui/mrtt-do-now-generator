@@ -1,1 +1,0 @@
-# mrtt-do-now-generator
